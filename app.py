@@ -3,7 +3,7 @@ from rich import print
 class User:
     all_users = []
     next_id = 1
-    account_created = False
+    current_user = None
 
     def __init__(self, name, password):
             self.name = name
@@ -13,15 +13,14 @@ class User:
             User.all_users.append(self)
             self.cart = Cart()
             self.rewards_points = 0
-            User.account_created = True
+            User.current_user = self
             print("\n[green]Account created![/green]\n")
 
-    @classmethod
-    def login(cls, name, password):
-        for user in cls.all_users:
-            if name == user.name and password == user.password:
-                return True
-        return False
+    def signout(self):
+        if User.current_user:
+            User.current_user = None
+        else:
+            print("No user logged in.")
 
 class Cart:
     def __init__(self):
@@ -38,14 +37,14 @@ class Cart:
         else:
             print("\n--- Your Cart ---")
             for item in self.items:
-                print(f"{item.name} - ${item.price} ({item.calories} calories)")
+                print(f"{item.name} - ${item.price:.2f} ({item.calories} calories)")
             total_price = sum(item.price for item in self.items)
-            print(f"\nTotal Price: ${total_price}\n")
+            print(f"\nTotal Price: ${total_price:.2f}\n")
             while True:
                 user_input = input("\nPress 1 to checkout or 2 to return to the main menu: \n")
 
                 if user_input == '1':
-                    user1.cart.checkout()
+                    User.current_user.cart.checkout()
                     break
                 elif user_input == '2':
                     break
@@ -62,8 +61,8 @@ class Cart:
                 user_input = input(f"You have {self.rewards_points} rewards points. You can save ${self.rewards_points / 100:.2f} on your order. Press 1 to use your rewards points or 2 to continue without using them.\n")
                 if user_input == '1':
                     total_price = sum(item.price for item in self.items)
-                    if self.rewards_points >= int(total_price * 10):
-                        self.rewards_points -= int(total_price * 10)
+                    if self.rewards_points >= (total_price * 100):
+                        self.rewards_points -= (total_price * 100)
                         total_price = 0
                     else:
                         total_price -= self.rewards_points / 100
@@ -127,26 +126,27 @@ def show_menu():
 
     print("\n--- Main Menu ---")
     n = 1
+    food = "\n--- Food ---\n"
+    dessert = "\n--- Desserts ---\n"
+    drink = "\n--- Drinks ---\n"
+
     for item in Item.all_items:
+
         if type(item) == Food:
-            if n == 1:
-                print("\n--- Food ---\n")
-            print(f"{n}. {item.name} - ${item.price} ({item.calories} calories)")
+            food += (f"{n}. {item.name} - ${item.price} ({item.calories} calories)\n")
             n += 1
 
         elif type(item) == Dessert:
-            if n == 6:
-                print("\n--- Desserts ---\n")
-            print(f"{n}. {item.name} - ${item.price} ({item.calories} calories, {item.sugar_content}g sugar)")
+            dessert += (f"{n}. {item.name} - ${item.price} ({item.calories} calories, {item.sugar_content}g sugar)\n")
             n += 1
             
         elif type(item) == Drink:
-            if n == 9:
-                print("\n--- Drinks ---\n")
-            print(f"{n}. {item.name} - ${item.price} ({item.calories} calories, {item.fl_oz} fl oz)")
+            drink += (f"{n}. {item.name} - ${item.price} ({item.calories} calories, {item.fl_oz} fl oz)\n")
             n += 1
 
-    if User.account_created:
+    print(food + dessert + drink)
+
+    if User.current_user:
         while True:
             try:
                 user_input = int(input("\nEnter the number of the item to add to your cart or type '0' to return: \n"))
@@ -158,16 +158,9 @@ def show_menu():
             if user_input == 0:
                 return
 
-            elif 1 <= user_input <= 11:
-                item_number = user_input
-                if 1 <= item_number <= 5:
-                    user1.cart.add_item(main_items[item_number - 1])
-                elif 6 <= item_number <= 8:
-                    user1.cart.add_item(desserts[item_number - 6])
-                elif 9 <= item_number <= 11:
-                    user1.cart.add_item(drinks[item_number - 9])
-                else:
-                    print("\n[red]Invalid selection. Please try again.[/red]\n")
+            elif 1 <= user_input <= len(Item.all_items):
+                User.current_user.cart.add_item(Item.all_items[user_input - 1])
+
             else:
                 print("\n[red]Invalid input. Please enter a number or '0'.[/red]\n")
     else: 
@@ -176,22 +169,26 @@ def show_menu():
 
 while True:
 
-    if User.account_created:
+    if User.current_user:
 
         print(f"""========================================================================
-[ 1. Menu ]                   BURGER HAVEN              [ 2. Cart ({len(user1.cart.items)}) ]
+[ 1. Menu ]                   BURGER HAVEN              [ 2. Cart ({len(User.current_user.cart.items)}) ]
 ========================================================================
 
 WELCOME TO BURGER HAVEN!
 Freshly smashed beef, crisp local greens, and house-made sauces. Press 1
-for our menu or press 2 to see your cart. Press "q" to quit.""")
+for our menu or press 2 to see your cart, press 3 to sign out, 
+press "q" to quit.""")
         choice = input()
 
         if choice == '1':
             show_menu()
 
         elif choice == '2':
-            user1.cart.show_cart()
+            User.current_user.cart.show_cart()
+        elif choice == '3':
+            User.current_user.signout()
+
         elif choice.lower() == 'q':
             print("\n[green]Thank you for visiting Burger Haven![/green]\n")
             break
@@ -203,7 +200,8 @@ for our menu or press 2 to see your cart. Press "q" to quit.""")
 
 WELCOME TO BURGER HAVEN!
 Freshly smashed beef, crisp local greens, and house-made sauces. Press 1
-for our menu or press 2 to create an account to add items to your cart. Press "q" to quit.""")
+for our menu, press 2 to create an account to add items to your cart, 
+press "q" to quit.""")
         choice = input()
 
         if choice == "1":
@@ -212,7 +210,7 @@ for our menu or press 2 to create an account to add items to your cart. Press "q
         elif choice == '2':
             name = input("\nEnter your name: ")
             password = input("\nEnter your password: ")
-            user1 = User(name, password)
+            User(name, password)
 
         elif choice.lower() == 'q':
             print("\n[green]Thank you for visiting Burger Haven![/green]\n")
